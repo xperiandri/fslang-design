@@ -6,7 +6,7 @@ This RFC covers the detailed proposal for this suggestion.
 
 - [x] [Suggestion](https://github.com/fsharp/fslang-suggestions/issues/1031)
 - [x] Approved in principle
-- [ ] Implementation: the prototype [dotnet/fsharp#18670](https://github.com/dotnet/fsharp/pull/18670) was closed without merging
+- [ ] [Implementation](https://github.com/dotnet/fsharp/pull/20759), after the prototype [dotnet/fsharp#18670](https://github.com/dotnet/fsharp/pull/18670)
 - [x] Discussion: [#803](https://github.com/fsharp/fslang-design/discussions/803), [#850](https://github.com/fsharp/fslang-design/pull/850)
 
 # Summary
@@ -54,6 +54,8 @@ A *range expression* is `e1..e2` or `e1..e2..e3`.
    [ yield! xs; 2..3; 4 ]   // xs, then 2; 3; 4
    [ yield 1; 2..3; 4 ]     // [1; 2; 3]; 4 is discarded with warning FS3221
    ```
+
+   A list or array of only values and ranges is the exception. It stays a literal, and every value is an element: `let f c = [ 1; 2..3; c ]` infers `c: int`, as `[ 1; c ]` does. The FS-1069 rule would make `c` a `unit` statement, as in `seq { 1; c }` today.
 
 3. **Explicit splice.** `yield! e1..e2` and `yield! e1..e2..e3` are allowed wherever `yield!` is allowed, with the same meaning.
 
