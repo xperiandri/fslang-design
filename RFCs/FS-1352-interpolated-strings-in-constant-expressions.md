@@ -9,7 +9,7 @@ The design suggestion [Support (a subset of) interpolated strings in Attribute p
 
 # Summary
 
-An interpolated string is a constant expression when each hole is a non-null constant string, integer, decimal, character or Boolean, with no alignment and no format specifier other than `%s`. The compiler evaluates it to the text that the same expression gives at run time. `[<Literal>]` values, attribute arguments and type provider static arguments can then use interpolation, as they already use `+`.
+An interpolated string is a constant expression when each hole is a non-null constant string, integer, decimal, character or Boolean, with no alignment and no format specifier other than a bare `%s`, `%d`, `%i`, `%c` or `%M`. The compiler evaluates it to the text that the same expression gives at run time. `[<Literal>]` values, attribute arguments and type provider static arguments can then use interpolation, as they already use `+`.
 
 # Motivation
 
@@ -36,7 +36,7 @@ The `[<Obsolete>]` message is the use case of the suggestion. `+` is harder to r
 
 An interpolated string is a *constant interpolated string* when each hole obeys all of these rules:
 
-1. The hole has no alignment (`{e,8}`) and no format specifier (`{e:N2}`, `%d{e}`), except `%s` on a `string` hole.
+1. The hole has no alignment (`{e,8}`) and no format specifier (`{e:N2}`, `%x{e}`), except a bare `%s`, `%d`, `%i`, `%c` or `%M` on a hole of type `string`, integer, `char` or `decimal` respectively. These give the same text as `{e}`; `%b` gives `true` where `{e}` gives `True`, and flags, widths and precisions change the text.
 2. The hole expression is a constant expression of type `string`, `decimal`, `char`, `bool` or an integer type: `sbyte`, `byte`, `int16`, `uint16`, `int32`, `uint32`, `int64` or `uint64`. A `string` value is not `null`.
 
 The rules apply to all interpolated string forms: `$"..."`, `$@"..."`, `$"""..."""` and `$$"""..."""`. A constant interpolated string has type `string` and is a constant expression. So it can be an operand of `+` or a hole of another constant interpolated string. Interpolated strings without holes are constant expressions already and do not change.
@@ -53,7 +53,7 @@ let Items = $"{Root}/items"          // "api/v2/items"
 let ApiVersion = 2
 
 [<Literal>]
-let Versioned = $"api/v{ApiVersion}{'-'}{true}"   // "api/v2-True"
+let Versioned = $"api/v%d{ApiVersion}{'-'}{true}"   // "api/v2-True"
 
 [<Literal>]
 let ItemById = $"{Items}/{{id}}"     // "api/v2/items/{id}", a route template
@@ -85,7 +85,7 @@ let dir = "data"
 
 [<Literal>] let A = $"{1.5}"                // rule 2: type float
 [<Literal>] let B = $"{Root,10}"            // rule 1: alignment
-[<Literal>] let C = $"%d{ApiVersion}"       // rule 1: format specifier
+[<Literal>] let C = $"%x{ApiVersion}"       // rule 1: format specifier
 [<Literal>] let D = $"{dir}/x"              // rule 2: not a constant
 [<Literal>] let E = $"{NoValue}/x"          // rule 2: null, as for NoValue + "/x" today
 [<Literal>] let F = $"{DayOfWeek.Monday}"   // rule 2: enum type
@@ -97,7 +97,7 @@ let dir = "data"
 
 > — OR —
 >
-> - An interpolated string whose holes are literal constant expressions of type `string` (not `null`), `decimal`, `char`, `bool` or an integer type, with no alignment and no format specifier other than `%s` on a `string` hole. Its value is the concatenation of its text fragments and hole texts.
+> - An interpolated string whose holes are literal constant expressions of type `string` (not `null`), `decimal`, `char`, `bool` or an integer type, with no alignment and no format specifier other than a bare `%s`, `%d`, `%i`, `%c` or `%M` on a hole of type `string`, integer, `char` or `decimal` respectively. Its value is the concatenation of its text fragments and hole texts.
 
 [Custom attribute](https://github.com/fsharp/fslang-spec/blob/main/spec/custom-attributes-and-reflection.md#custom-attributes) arguments and [provided type](https://github.com/fsharp/fslang-spec/blob/main/spec/provided-types.md) static parameters use this definition, so they do not change.
 
@@ -115,7 +115,7 @@ let dir = "data"
 
 # Prior art
 
-C# 10 [constant interpolated strings](https://github.com/dotnet/csharplang/blob/main/proposals/csharp-10.0/constant_interpolated_strings.md) ([champion issue](https://github.com/dotnet/csharplang/issues/2951)) accept constant `string` holes without alignment or format specifiers, and reject a `null` constant hole (CS0133). F# accepts these holes too, and also integer, `decimal`, `char`, `bool` and `%s` holes. C# cannot fold numeric holes: it formats them with the current culture.
+C# 10 [constant interpolated strings](https://github.com/dotnet/csharplang/blob/main/proposals/csharp-10.0/constant_interpolated_strings.md) ([champion issue](https://github.com/dotnet/csharplang/issues/2951)) accept constant `string` holes without alignment or format specifiers, and reject a `null` constant hole (CS0133). F# accepts these holes too, and also integer, `decimal`, `char` and `bool` holes, and the bare `%s`, `%d`, `%i`, `%c` and `%M` specifiers. C# cannot fold numeric holes: it formats them with the current culture.
 
 C# also evaluates such strings at compile time outside constant contexts. This RFC does not require that, as F# does not require it for `+`.
 
@@ -134,7 +134,7 @@ Other .NET languages see an ordinary `const string` field or attribute value.
 
 ## Diagnostics
 
-Report the error on the first hole that breaks a rule, not on the whole string, and state the rules. For example: *"This interpolated string must be a constant, so each hole must be a non-null constant string, integer, decimal, character or Boolean, with no alignment and no format specifier other than '%s' for a string."*
+Report the error on the first hole that breaks a rule, not on the whole string, and state the rules. For example: *"This interpolated string must be a constant, so each hole must be a non-null constant string, integer, decimal, character or Boolean, with no alignment and no format specifier other than a bare '%s', '%d', '%i', '%c' or '%M' that matches the type."*
 
 ## Tooling
 
