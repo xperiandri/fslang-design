@@ -122,7 +122,7 @@ C# also evaluates such strings at compile time outside constant contexts. This R
 # Compatibility
 
 - Not a breaking change: each new form gave FS0267 before.
-- An older compiler reports FS0267 for the new forms. A newer compiler with an older `--langversion` reports that the feature needs a newer language version.
+- A compiler without the feature, or with an older `--langversion`, reports FS0267 for the new forms, as before. Interpolated strings that are never evaluated, such as the unused branch of `false && (...)`, are not checked as constants.
 - Binaries contain only the evaluated string: a literal field, an attribute blob, or a `Const.String` in F# metadata. Older compilers read them as before. The metadata format does not change.
 - No FSharp.Core change.
 
@@ -134,7 +134,7 @@ Other .NET languages see an ordinary `const string` field or attribute value.
 
 ## Diagnostics
 
-Report the error on the first hole that breaks a rule, not on the whole string, and state the rules. For example: *"This interpolated string is a constant, so each hole must be a non-null constant string, integer, decimal, character or Boolean, with no alignment and no format specifier other than '%s' for a string."*
+Report the error on the first hole that breaks a rule, not on the whole string, and state the rules. For example: *"This interpolated string must be a constant, so each hole must be a non-null constant string, integer, decimal, character or Boolean, with no alignment and no format specifier other than '%s' for a string."*
 
 ## Tooling
 
