@@ -152,7 +152,7 @@ See [Interactions](#interactions).
 ## Diagnostics
 
 - `yield e1..e2`, `return e1..e2`, `-> e1..e2`: a new error (rule 4).
-- Element type mismatch: FS0001 at the range.
+- Element type mismatch: the error of the equivalent `yield!`, reported at the range.
 
 ## Tooling
 
