@@ -134,7 +134,7 @@ Other .NET languages see an ordinary `const string` field or attribute value.
 
 ## Diagnostics
 
-Report the error on the first hole that breaks a rule, not on the whole string, and state the rules. For example: *"This interpolated string must be a constant, so each hole must be a non-null constant string, integer, decimal, character or Boolean, with no alignment and no format specifier other than a bare '%s', '%d', '%i', '%c' or '%M' that matches the type."*
+Report the existing error FS0267, "This is not a valid constant expression or custom attribute value", on the first hole that breaks a rule, not on the whole string. A hole that breaks a rule and is never evaluated, such as one in the unused branch of `false && (...)`, is not reported.
 
 ## Tooling
 
