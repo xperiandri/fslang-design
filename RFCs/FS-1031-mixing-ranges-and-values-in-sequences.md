@@ -48,14 +48,14 @@ A *range expression* is `e1..e2` or `e1..e2..e3`.
    let h xs = [ for x in xs do x..x+2 ]
    ```
 
-2. **Implicit yields.** Like `yield!`, a range expression is not an explicit `yield` for the activation rule of [FS-1069](../FSharp-4.7/FS-1069-implicit-yields.md). It is a splice whether implicit yields are active or not. Plain values keep the FS-1069 rule:
+2. **Implicit yields.** Like `yield!`, a range expression is not an explicit `yield` for the activation rule of [FS-1069](../FSharp-4.7/FS-1069-implicit-yields.md). It is a splice whether implicit yields are active or not. Values keep the FS-1069 rule:
 
    ```fsharp
    [ yield! xs; 2..3; 4 ]   // xs, then 2; 3; 4
    [ yield 1; 2..3; 4 ]     // [1; 2; 3]; 4 is discarded with warning FS3221
    ```
 
-   A list or array whose elements are all ranges or plain expressions is the exception. A plain expression is any expression except a `yield`, `yield!`, `return`, `return!`, `if`, `match`, `try`, `for`, `while`, `let`, `use` or `do` construct. Each plain expression is an element, as in a list literal: `let f c = [ 1; 2..3; c ]` infers `c: int`, as `[ 1; c ]` does. The FS-1069 rule would make `c` a `unit` statement, as in `seq { 1; c }` today.
+   A list or array whose elements are only ranges and expressions that are not statements (`yield`, `return`, `do`, their `!` forms and the constructs of rule 1) is the exception. Its expressions are elements, as in a list literal: `let f c = [ 1; 2..3; c ]` infers `c: int`, as `[ 1; c ]` does. The FS-1069 rule would make `c` a `unit` statement, as in `seq { 1; c }` today.
 
 3. **Explicit splice.** `yield! e1..e2` and `yield! e1..e2..e3` are allowed wherever `yield!` is allowed, with the same meaning.
 
@@ -108,13 +108,13 @@ let result = mybuilder { 1; 2..5; 10 }  // [1; 2; 3; 4; 5; 10]
 - §6.3.10 Computation Expressions: add `range-expr` and `yield! range-expr` to `comp-expr`, with the translation of rule 7.
 - §6.3.12 Range Expressions: a range expression may also be an element of a list, array, sequence or computation expression (rules 1 and 5).
 - §6.3.13 Lists via Sequence Expressions and §6.3.14 Arrays Sequence Expressions: add examples `[ e; e1..e2 ]` and `[| e; e1..e2 |]`. The elaboration through `Seq.toList` and `Seq.toArray` does not change.
-- Implicit yields (FS-1069): a range expression is not an explicit `yield`, and the plain expressions of a flat list or array with a range stay elements (rule 2).
+- Implicit yields (FS-1069): a range expression is not an explicit `yield`, and the expressions of a list or array of only ranges and expressions stay elements (rule 2).
 
 # Drawbacks
 
 - One more implicit rule in collection expressions.
 - `e1..e2` in element position permanently means "splice".
-- A plain value next to a range can still be discarded (rule 2).
+- A value next to a range can still be discarded (rule 2).
 
 # Alternatives
 
