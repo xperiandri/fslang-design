@@ -62,7 +62,7 @@ The static type of the scrutinee can be a union type, a closed class, or `Nullab
 - A single identifier names a case type by its name without arity: `Cat`, `String`, `Int32`, or the name of the union's type parameter. Otherwise the identifier resolves as a type name in scope: `int`, `string`, `Zoo.Cat`, an alias.
 - `Pet.Cat c` names the case through the union and also fixes the scrutinee type. Use it when the scrutinee type is not known yet.
 - A lowercase identifier without an argument stays a variable pattern.
-- A case pattern takes zero or one argument: `Cat`, `Cat c`, `Cat _`, and `Cat (Kitten k)` when `Cat` is itself a union. `as`, or-patterns and `when` work as for F# union cases.
+- A case pattern takes zero or one argument: `Cat`, `Cat c`, `Cat _`, and `Cat (Kitten k)` when `Cat` is itself a union. The argument is an ordinary pattern of the case type, so every pattern form F# has or gains for that type composes: `Cat (name, _)` with FS-1344, `Cat { Name = n }` if C# records get record patterns. `as`, or-patterns and `when` work as for F# union cases.
 - Two case types with the same name (`union U(List<int>, List<string>)`) are an error.
 - The scrutinee type MUST be known at the pattern. Otherwise the compiler reports FS0039 with a hint to annotate the scrutinee or to qualify the case.
 
