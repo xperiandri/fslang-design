@@ -1,9 +1,9 @@
 # F# RFC FS-1359 - Interop with C# 14 extension members
 
-The design suggestion [Interop with C# 14 extension members in both directions](https://github.com/fsharp/fslang-suggestions/issues/NNNN) has not been marked "approved in principle" yet.
+The design suggestion [Interop with C# 14 extension members in both directions](https://github.com/fsharp/fslang-suggestions/issues/1479) has not been marked "approved in principle" yet.
 This RFC covers the detailed proposal for this suggestion.
 
-- [x] [Suggestion](https://github.com/fsharp/fslang-suggestions/issues/NNNN)
+- [x] [Suggestion](https://github.com/fsharp/fslang-suggestions/issues/1479)
 - [ ] Approved in principle
 - [ ] Implementation (not started)
 - [ ] Discussion
