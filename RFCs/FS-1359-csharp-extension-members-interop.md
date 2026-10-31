@@ -6,7 +6,7 @@ This RFC covers the detailed proposal for this suggestion.
 - [x] [Suggestion](https://github.com/fsharp/fslang-suggestions/issues/1479)
 - [ ] Approved in principle
 - [ ] Implementation (not started)
-- [ ] Discussion
+- [x] [Discussion](https://github.com/fsharp/fslang-design/pull/864)
 
 Related: [FS-1043 extension members in SRTP](FS-1043-extension-members-for-operators-and-srtp-constraints.md), [dotnet/fsharp#20035](https://github.com/dotnet/fsharp/issues/20035), [dotnet/fsharp#16362](https://github.com/dotnet/fsharp/issues/16362), [dotnet/fsharp#9405](https://github.com/dotnet/fsharp/issues/9405), [dotnet/roslyn#84629](https://github.com/dotnet/roslyn/issues/84629).
 
