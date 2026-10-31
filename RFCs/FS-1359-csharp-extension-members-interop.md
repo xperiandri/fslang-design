@@ -62,7 +62,7 @@ Name resolution treats the container as a classic extension class, with these ad
 
 ## Emission
 
-`[<Extension>]` is permitted on a type extension in a module. Today this is FS3246. For such an extension the compiler emits the shape:
+The compiler permits `[<Extension>]` on a type extension in a module. Today this is FS3246. For such an extension the compiler emits the shape:
 
 - The enclosing module is the container. It gets `[Extension]` if it does not have it.
 - Members group by receiver type and constraints into grouping types. The grouping and marker type names are content-based hashes of the signature. They are stable between builds and unspeakable.
@@ -88,7 +88,7 @@ A `[<Extension>]` type extension in a nested module gets a warning. A nested mod
 
 # Alternatives
 
-- **`[<Extension>]` on the module**: opts in every type extension in the module. Less precise; it can be added later.
+- **`[<Extension>]` on the module**: opts in every type extension in the module. Less precise; a later RFC can add it.
 - **A new attribute** such as `[<CSharpExtension>]`: a second attribute for one concept.
 - **Emit the shape for every type extension**: changes compiled names and breaks binary compatibility.
 - **Consume only**: F# reads the BCL members; F# libraries stay invisible to C#.
