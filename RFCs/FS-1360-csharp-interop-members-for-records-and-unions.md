@@ -6,7 +6,7 @@ This RFC covers the detailed proposal for all three.
 - [x] Suggestions: [#683](https://github.com/fsharp/fslang-suggestions/issues/683), [#903](https://github.com/fsharp/fslang-suggestions/issues/903), [#902](https://github.com/fsharp/fslang-suggestions/issues/902)
 - [x] Approved in principle
 - [ ] Implementation (not started)
-- [ ] Discussion
+- [x] [Discussion](https://github.com/fsharp/fslang-design/pull/865)
 
 Related: [FS-1127](../FSharp-7.0/FS-1127-init-only-and-required-properties.md) (F# consumes `init` and `required`), [FS-1346](https://github.com/fsharp/fslang-design/pull/842) (`{ r with }` for C# records, the mirror direction), [FS-1344](https://github.com/fsharp/fslang-design/pull/840) (F# consumes `Deconstruct`), [fslang-suggestions#1464](https://github.com/fsharp/fslang-suggestions/issues/1464) (unions).
 
