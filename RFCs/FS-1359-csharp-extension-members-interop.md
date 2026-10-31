@@ -8,31 +8,37 @@ This RFC covers the detailed proposal for this suggestion.
 - [ ] Implementation (not started)
 - [ ] Discussion
 
-Related: [FS-1043 extension members in SRTP](FS-1043-extension-members-for-operators-and-srtp-constraints.md), [dotnet/fsharp#20035](https://github.com/dotnet/fsharp/issues/20035), [dotnet/roslyn#84629](https://github.com/dotnet/roslyn/issues/84629).
+Related: [FS-1043 extension members in SRTP](FS-1043-extension-members-for-operators-and-srtp-constraints.md), [dotnet/fsharp#20035](https://github.com/dotnet/fsharp/issues/20035), [dotnet/fsharp#16362](https://github.com/dotnet/fsharp/issues/16362), [dotnet/fsharp#9405](https://github.com/dotnet/fsharp/issues/9405), [dotnet/roslyn#84629](https://github.com/dotnet/roslyn/issues/84629).
 
 # Summary
 
 C# 14 compiles an `extension` block to a documented metadata shape. This RFC makes F# read that shape and write it.
 
-- F# resolves every member of a C# 14 extension block: instance and static methods, instance and static properties, and operators. Today F# resolves only the instance methods.
-- A type extension with `[<Extension>]` compiles to that shape. C# then sees F# extension properties, static extension members and extension operators.
+- F# resolves every member of a C# 14 extension block: methods, properties and operators, instance or static. Today F# resolves only the instance methods.
+- An `[<Extension>]` member of an optional type extension, in an `[<Extension>]` module, compiles to that shape with a plain name. F# already uses this placement for C#-style extension members. C# then sees F# extension properties, static extension members and extension operators.
 
 ```fsharp
+open System.Runtime.CompilerServices
+
 [<Extension>]
-type Thing with
-    member x.Tripled = x.Value * 3                                     // C#: thing.Tripled
-    static member Create v = Thing v                                   // C#: Thing.Create(5)
-    static member (+) (a: Thing, b: Thing) = Thing(a.Value + b.Value)  // C#: a + b
+module ThingExtensions =
+    type Thing with
+        [<Extension>]
+        member x.Tripled = x.Value * 3                                      // C#: thing.Tripled
+        [<Extension>]
+        static member Create v = Thing v                                    // C#: Thing.Create(5)
+        [<Extension>]
+        static member (+) (a: Thing, b: Thing) = Thing(a.Value + b.Value)   // C#: a + b
 ```
 
-The feature is `CSharpExtensionMembers` (preview). Consumption is not gated.
+The feature is `CSharpExtensionMembers` (preview). It gates emission. Consumption is not gated.
 
 # Motivation
 
 - .NET 11 `System.Private.CoreLib` declares the static properties `E`, `Pi`, `Tau`, `Epsilon`, `NaN`, `NegativeOne`, … of `Vector64/128/256/512<T>` in extension blocks. `Vector128<float32>.Pi` is FS0039 in F#. The only call today is `Vector128.get_Pi<float32>()`.
 - ASP.NET Core 10 `Microsoft.AspNetCore.Identity` ships one block with 42 members. More libraries will follow.
 - The unspeakable nested types of a block resolve in F#. A call to their members throws `NotSupportedException` at run time.
-- F# compiles `member x.Tripled` of a type extension to a static method named `Thing.get_Tripled`. C# cannot name it ([dotnet/fsharp#20035](https://github.com/dotnet/fsharp/issues/20035), [dotnet/fsharp#16362](https://github.com/dotnet/fsharp/issues/16362)). Users write C# shims.
+- F# compiles a member of an optional type extension to a static method with a dotted name: `Thing.Doubled`, `Thing.get_Tripled`, `Thing.Create.Static`, `Thing.op_Addition.Static`. `[<Extension>]` on the member and on the module does not change the name, so C# cannot name the method ([dotnet/fsharp#16362](https://github.com/dotnet/fsharp/issues/16362), [dotnet/fsharp#20035](https://github.com/dotnet/fsharp/issues/20035)). `[<CompiledName>]` repairs a method, but F# ignores it on extension properties ([dotnet/fsharp#9405](https://github.com/dotnet/fsharp/issues/9405)). Users write C# shims.
 - The C# team will not add an attribute for other languages ([dotnet/roslyn#84629](https://github.com/dotnet/roslyn/issues/84629)). The metadata shape is the contract.
 
 # Detailed design
@@ -62,35 +68,40 @@ Name resolution treats the container as a classic extension class, with these ad
 
 ## Emission
 
-The compiler permits `[<Extension>]` on a type extension in a module. Today this is FS3246. For such an extension the compiler emits the shape:
+A *marked member* is an `[<Extension>]` member of an optional type extension, in a module with `[<Extension>]`. The code MUST write the attribute on the module. F# adds it to a module for `let` bindings, but not for type-extension members. Intrinsic extensions do not change.
 
-- The enclosing module is the container. It gets `[Extension]` if it does not have it.
-- Members group by receiver type and constraints into grouping types. The grouping and marker type names are content-based hashes of the signature. They are stable between builds and unspeakable.
-- Each member gets a skeleton and an implementation method with a speakable name: `get_Tripled(Thing)`, `set_Tripled(Thing, int)`, `Create(int)`, `op_Addition(Thing, Thing)`. Today the compiled names are `Thing.get_Tripled` and `Thing.Create.Static`.
-- An instance method also carries `[Extension]`, so F# and C# 13 see a classic extension method.
+For marked members the compiler emits the shape:
+
+- The module is the container.
+- Marked members group by receiver type and constraints into grouping types. The grouping and marker type names are content-based hashes of the signature. They are stable between builds and unspeakable.
+- Each marked member gets a skeleton and an implementation method. The skeleton has the F# name, for example `Tripled`. The implementation has a plain name: `Doubled`, `get_Tripled`, `set_Tripled`, `Create`, `op_Addition`. An explicit `[<CompiledName>]` overrides the plain name.
+- The implementation of an instance method also carries `[Extension]`, so F# and C# 13 see a classic extension method. No other implementation carries it.
 - The compiler embeds `ExtensionMarkerAttribute` when the target framework lacks it, as for `IsReadOnlyAttribute`.
-- F# callers use the F# signature data as today. The compiled names change only for members under `[<Extension>]`.
 
-Members with no C# counterpart compile as today and get a warning: curried members, conversion operators and events.
+With the feature on, the skeleton and the implementation replace the dotted method. Unmarked members compile as today.
 
-A `[<Extension>]` type extension in a nested module gets a warning. A nested module compiles to a nested class, and C# reads extension members only from a top-level container.
+Two marked members of one module can have the same plain name and parameter types, for example `Create` on two receiver types. C# reports the same conflict. The compiler MUST report an error.
+
+A marked member in a nested module gets a warning. A nested module compiles to a nested class, and C# reads extension members only from a top-level container.
 
 # Changes to the F# spec
 
-- [§8.13 Type Extensions](https://fsharp.github.io/fslang-spec/type-definitions/#813-type-extensions): permit `[<Extension>]` on an optional type extension; add the compiled form of [Emission](#emission).
+- [§8.13 Type Extensions](https://fsharp.github.io/fslang-spec/type-definitions/#813-type-extensions): add the compiled form of [Emission](#emission).
 - [§14.1 Name Resolution](https://fsharp.github.io/fslang-spec/inference-procedures/#141-name-resolution): add the members of [Consumption](#consumption) to the extension members of a type, with the receiver from the marker method.
 
 # Drawbacks
 
-- An opted-in extension emits two members for each source member. Assemblies grow.
+- A marked member emits two methods, a skeleton and an implementation. Assemblies grow.
 - F# assemblies get unspeakable nested types.
+- A marked member changes its compiled name. A caller compiled against the old binary must recompile.
 - F# depends on the structural checks of Roslyn. A change there needs a change in F#.
 
 # Alternatives
 
-- **`[<Extension>]` on the module**: opts in every type extension in the module. Less precise; a later RFC can add it.
+- **`[<Extension>]` on the module only**: opts in every type-extension member. The author cannot exclude one member.
 - **A new attribute** such as `[<CSharpExtension>]`: a second attribute for one concept.
-- **Emit the shape for every type extension**: changes compiled names and breaks binary compatibility.
+- **Plain names only**: fixes [dotnet/fsharp#16362](https://github.com/dotnet/fsharp/issues/16362). C# 13 gets the instance methods. Properties, static members and operators stay invisible.
+- **Emit the shape for every optional type extension**: changes compiled names and breaks binary compatibility.
 - **Consume only**: F# reads the BCL members; F# libraries stay invisible to C#.
 - **An attribute contract from C#**: rejected in [dotnet/roslyn#84629](https://github.com/dotnet/roslyn/issues/84629).
 
@@ -102,8 +113,9 @@ A `[<Extension>]` type extension in a nested module gets a warning. A nested mod
 
 # Compatibility
 
-- Not a breaking change. `[<Extension>]` on a type extension is FS3246 today. Extensions without it compile as today.
-- Older F# compilers reading source with `[<Extension>]` on a type extension: FS3246.
+- No source break. `[<Extension>]` on type-extension members is valid today.
+- The compiled name of a marked member changes when the library recompiles with the feature on. C# could not call the old name. An F# caller compiled against the old binary must recompile.
+- Older F# compilers reading source: they compile as today, with dotted names.
 - Older F# compilers reading new binaries: they use the F# signature data and call the implementation methods by compiled name. They see grouping types as plain nested types, as the current compiler sees C# blocks.
 - FSharp.Core does not change.
 
@@ -118,10 +130,10 @@ A `[<Extension>]` type extension in a nested module gets a warning. A nested mod
 
 | Number | Condition | Severity |
 |---|---|---|
-| new | `[<Extension>]` type extension in a nested module | warning |
-| new | a member of a `[<Extension>]` type extension has no C# counterpart: curried, conversion operator, event | warning |
-| FS3246 | an attribute other than `[<Extension>]` on a type extension | error, unchanged |
-| FS3350 | `[<Extension>]` on a type extension and the feature is off | error |
+| new | a marked member in a nested module | warning |
+| new | a marked member is `op_Implicit` or `op_Explicit`; C# ignores it | warning |
+| new | two marked members of one module compile to the same name and parameter types | error |
+| FS1215 | a marked operator, language version without FS-1043 | warning, unchanged |
 
 ## Tooling
 
@@ -129,7 +141,7 @@ Completion, tooltips and Go to Definition show C# 14 extension members as extens
 
 ## Performance
 
-The compiler reads a container once per assembly and caches the result, as for classic extension classes. Emission adds one pass over opted-in extensions.
+The compiler reads a container once per assembly and caches the result, as for classic extension classes. Emission adds one pass over marked members.
 
 ## Scaling
 
@@ -141,6 +153,9 @@ Not applicable.
 
 # Unresolved questions
 
+- Whether the compiler adds `[<Extension>]` to the module for a marked type-extension member, as it does for `let` bindings.
+- Whether `[<CompiledName>]` on a marked property is honoured ([dotnet/fsharp#9405](https://github.com/dotnet/fsharp/issues/9405)).
+- Whether to gate consumption. New candidates can change overload resolution in existing code.
 - The hash scheme for the generated names. Roslyn uses XxHash128 of a raw signature string. The same scheme gives the same XML doc IDs from C# and F#.
 - Indexers: extension indexers are preview in C#.
 - Receivers with `byref`/`inref`, which C# encodes as `ref`/`ref readonly` on the marker parameter.
