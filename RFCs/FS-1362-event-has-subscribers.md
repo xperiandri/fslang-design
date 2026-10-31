@@ -6,7 +6,7 @@ This RFC covers the detailed proposal for this suggestion.
 - [x] [Suggestion](https://github.com/fsharp/fslang-suggestions/issues/938)
 - [x] [Approved in principle](https://github.com/fsharp/fslang-suggestions/issues/938#issuecomment-931782202)
 - [ ] Implementation (not started)
-- [ ] Discussion
+- [x] [Discussion](https://github.com/fsharp/fslang-design/pull/867)
 
 # Summary
 
