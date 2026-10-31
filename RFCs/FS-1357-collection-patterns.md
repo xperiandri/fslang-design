@@ -1,8 +1,8 @@
 # F# RFC FS-1357 - Collection patterns
 
-The design suggestion [Collection patterns](https://github.com/fsharp/fslang-suggestions/issues/FILL-ME-IN) is not yet approved in principle. This RFC is a draft for discussion.
+The design suggestion [Collection patterns](https://github.com/fsharp/fslang-suggestions/issues/1478) is not yet approved in principle. This RFC is a draft for discussion.
 
-- [ ] [Suggestion](https://github.com/fsharp/fslang-suggestions/issues/FILL-ME-IN)
+- [x] [Suggestion](https://github.com/fsharp/fslang-suggestions/issues/1478)
 - [ ] Approved in principle
 - [ ] Implementation
 - [ ] Discussion
