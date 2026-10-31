@@ -9,7 +9,7 @@ The design suggestion [Collection patterns](https://github.com/fsharp/fslang-sug
 
 # Summary
 
-List and array patterns apply to other collection types when the compiler knows the type of the scrutinee. A type with `IsEmpty`, `Head` and `Tail` matches `[]`, `[a; b]` and `x :: xs`. A type with `Length` or `Count` and an `int` indexer matches `[| |]` and `[| a; b |]`. A new spread element `...pat` in a bracket pattern binds the remaining elements as a slice. The patterns compile to member calls and integer tests. The compiled code has no new node and no new metadata.
+List and array patterns apply to other collection types when the compiler knows the type of the scrutinee. `[ ]` is the type-directed bracket: a type with `IsEmpty`, `Head` and `Tail` matches `[]`, `[a; b]` and `x :: xs`; a type with `Length` or `Count` and an `int` indexer matches `[]` and `[a; b]`. `[| |]` stays the array pattern, and `[| |]` on an F# list stays an error. A new spread element `...pat` in a bracket pattern binds the remaining elements as a slice. The patterns compile to member calls and integer tests. The compiled code has no new node and no new metadata.
 
 # Motivation
 
@@ -18,8 +18,8 @@ Code that matches an `ImmutableArray<'T>`, a `ReadOnlySpan<char>` or a lazy list
 ```fsharp
 let rec sum (xs: ReadOnlySpan<int>) =
     match xs with
-    | [| |] -> 0
-    | [| x; ...rest |] -> x + sum rest      // rest: ReadOnlySpan<int>, no copy
+    | [] -> 0
+    | [x; ...rest] -> x + sum rest          // rest: ReadOnlySpan<int>, no copy
 ```
 
 # Detailed design
@@ -42,10 +42,10 @@ A bracket pattern MUST contain at most one spread element. The token `...` is `D
 
 1. `T` is an inference variable: the pattern keeps its current meaning. `[ ]` and `::` unify `T` with `'a list`, and `[| |]` unifies `T` with `'a[]`.
 2. `T` is `'a list`: `[ ]` and `::` compile as today. `[| |]` is an error, as today.
-3. `T` is `'a[]`: `[| |]` compiles as today, with the spread rule of protocol 2.
-4. Otherwise: `::` uses protocol 1. `[| |]` uses protocol 2. `[ ]` uses protocol 1 when `T` has it, and protocol 2 otherwise.
+3. `T` is `'a[]`: `[| |]` compiles as today, with the spread rule of protocol 2. `[ ]` uses protocol 2.
+4. Otherwise: `[| |]` is an error. `::` uses protocol 1. `[ ]` uses protocol 1 when `T` has it, and protocol 2 otherwise.
 
-A type with both protocols gets protocol 1 for `[ ]` and `::`, and protocol 2 for `[| |]`. The resolution does not depend on the other clauses of the match. A pattern in `function` or `fun` gets an inference variable unless an annotation or the context gives the type.
+A type with both protocols gets protocol 1. The resolution does not depend on the other clauses of the match. A pattern in `function` or `fun` gets an inference variable unless an annotation or the context gives the type.
 
 ## Protocol 1: head and tail
 
@@ -74,15 +74,15 @@ For `n` element patterns before a spread, `j` element patterns after it, and the
 
 | Pattern | Test | Sub-patterns |
 | --- | --- | --- |
-| `[| p0; …; pn-1 |]` | `x.Length = n` | `pi` on `x[i]` |
-| `[| p0; …; pn-1; ...ps; q0; …; qj-1 |]` | `x.Length >= n + j` | `pi` on `x[i]`, `qi` on `x[x.Length - j + i]`, `ps` on the slice at `n` of length `x.Length - n - j` |
+| `[p0; …; pn-1]` | `x.Length = n` | `pi` on `x[i]` |
+| `[p0; …; pn-1; ...ps; q0; …; qj-1]` | `x.Length >= n + j` | `pi` on `x[i]`, `qi` on `x[x.Length - j + i]`, `ps` on the slice at `n` of length `x.Length - n - j` |
 
-The compiler evaluates `x.Length` once for the exact-length tests and once for the spread tests of one scrutinee.
+`[| … |]` on an array has the same tests. The compiler evaluates `x.Length` once for the exact-length tests and once for the spread tests of one scrutinee.
 
 ```fsharp
 let parse (s: string) =
     match s with
-    | [| '-'; ...digits |] -> -(Int32.Parse digits)   // digits: ReadOnlySpan<char>
+    | ['-'; ...digits] -> -(Int32.Parse digits)       // digits: ReadOnlySpan<char>
     | _ -> Int32.Parse s
 ```
 
@@ -105,8 +105,8 @@ A collection pattern reads a member of the scrutinee. A null scrutinee throws `N
 ## Exhaustiveness and redundancy
 
 - Protocol 1: `[]` and `_ :: _` together are complete, because the test is a boolean.
-- Protocol 2: the compiler treats an exact length as an integer constant and a spread pattern as a `Length >= n` test. `[| |]` and `[| _; ..._ |]` together are complete. A counterexample for a missing length prints as an array pattern of unknowns, for example `[|_; _|]`.
-- The compiler MAY not report warning FS0026 for a clause that only an exact-length test and a spread test together make unreachable. Example: the third clause of `[| |] | [| a; ...r |] | [| x; y |]`.
+- Protocol 2: the compiler treats an exact length as an integer constant and a spread pattern as a `Length >= n` test. `[]` and `[_; ..._]` together are complete. A counterexample for a missing length prints as an array pattern of unknowns, for example `[|_; _|]`.
+- The compiler MAY not report warning FS0026 for a clause that only an exact-length test and a spread test together make unreachable. Example: the third clause of `[] | [a; ...r] | [x; y]`.
 
 ## Byref-like slices
 
@@ -124,7 +124,7 @@ Each collection pattern lowers to a `let` of the test value (`x.IsEmpty`, `x.Len
 
 # Drawbacks
 
-- The meaning of `[ ]` and `[| |]` depends on the known type. `function` needs an annotation.
+- The meaning of `[ ]` depends on the known type. In `function` and `fun` the pattern is the first mention of the type, so the list default applies there; a protocol applies only when an annotation or the context gives the type first.
 - The rest of an array has type `Span<'T>`, not `'T[]`. A recursive function over the rest takes a span.
 - Three name-based protocols (`IsEmpty`/`Head`/`Tail`, `Length`/indexer, slice members), as `GetEnumerator` and `GetSlice` today.
 - A type whose `Slice` copies makes `...rest` copy.
@@ -135,6 +135,7 @@ Each collection pattern lowers to a `let` of the test value (`x.IsEmpty`, `x.Len
 - Active patterns, the status quo: one per type, no byref-like result, an allocation per match, no completeness for partial patterns.
 - `x :: xs` on indexable types ([#1088](https://github.com/fsharp/fslang-suggestions/issues/1088)): `xs` is a copy, or a span of another type than `x`. The suggestion excludes it.
 - A rest that copies, with the type of the scrutinee (C#, `RuntimeHelpers.GetSubArray`): O(n) per level, so a recursion over the rest is O(n²).
+- `[| |]` type-directed as well, as the way to ask for protocol 2 on a type that has both protocols: a second bracket for a rare case; dropped in review, `[| |]` stays the array form.
 - A new bracket form, `[: … :]` of the earlier FS-1094 text: a third syntax for one type, withdrawn in [discussion #528](https://github.com/fsharp/fslang-design/discussions/528).
 - Byref-like results for active patterns: gives spans, but keeps one pattern per type and no completeness.
 - "Null never matches" (C#): three outcomes per test, so `[] | _ :: _` becomes incomplete.
@@ -197,5 +198,4 @@ None. `Length` and indices are integers; the feature parses and formats no text.
 1. A spread in any position, or only as the last element.
 2. Extension members for `Length`, `Count` and the indexer. Protocol 1 and the slice rules accept extensions.
 3. `Length: int64` and `nativeint`.
-4. `[ ]` on protocol 2, or only `[| |]`.
-5. `null`: member semantics (this text) or the C# rule.
+4. `null`: member semantics (this text) or the C# rule.
