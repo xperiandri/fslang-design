@@ -86,7 +86,8 @@ A marked member in a nested module gets a warning. A nested module compiles to a
 
 # Changes to the F# spec
 
-- [§8.13 Type Extensions](https://fsharp.github.io/fslang-spec/type-definitions/#813-type-extensions): add the compiled form of [Emission](#emission).
+- [§8.12 Type Extensions](https://fsharp.github.io/fslang-spec/type-definitions/#812-type-extensions): add the compiled form of [Emission](#emission).
+- [§8.12.1 Imported CLI C# Extensions Members](https://fsharp.github.io/fslang-spec/type-definitions/#8121-imported-cli-c-extensions-members): replace "C# limits extension members to instance methods" with the members of [Consumption](#consumption).
 - [§14.1 Name Resolution](https://fsharp.github.io/fslang-spec/inference-procedures/#141-name-resolution): add the members of [Consumption](#consumption) to the extension members of a type, with the receiver from the marker method.
 
 # Drawbacks
