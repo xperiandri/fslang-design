@@ -6,9 +6,9 @@ This RFC covers the detailed proposal for its consumption half: F# reads C# unio
 - [x] [Suggestion](https://github.com/fsharp/fslang-suggestions/issues/1464)
 - [ ] Approved in principle
 - [ ] Implementation (not started)
-- [ ] Discussion
+- [x] [Discussion](https://github.com/fsharp/fslang-design/pull/866)
 
-Related: C# [unions](https://github.com/dotnet/csharplang/blob/main/proposals/csharp-15.0/unions.md) and [closed hierarchies](https://github.com/dotnet/csharplang/blob/main/proposals/csharp-15.0/closed-hierarchies.md), [FS-1093](../FSharp-6.0/FS-1093-additional-conversions.md) (type-directed conversions), [FS-1360](https://github.com/fsharp/fslang-design/pulls?q=FS-1360) (C#-compatible members on F# types), [#1215](https://github.com/fsharp/fslang-suggestions/issues/1215) (sealed classes).
+Related: C# [unions](https://github.com/dotnet/csharplang/blob/main/proposals/csharp-15.0/unions.md) and [closed hierarchies](https://github.com/dotnet/csharplang/blob/main/proposals/csharp-15.0/closed-hierarchies.md), [FS-1093](../FSharp-6.0/FS-1093-additional-conversions.md) (type-directed conversions), [FS-1360](https://github.com/fsharp/fslang-design/pull/865) (C#-compatible members on F# types), [#1215](https://github.com/fsharp/fslang-suggestions/issues/1215) (sealed classes).
 
 # Summary
 
