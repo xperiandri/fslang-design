@@ -9,7 +9,7 @@ The design suggestion [Allow methods with name New* on DUs as long as they have 
 
 # Summary
 
-A union type can declare a static method `New<Case>` with the new attribute `[<UnionCaseFactory>]`. This method is a factory: one more way to construct the case. F# code calls the factory through the case name, `Case(args)`. Other .NET languages see the factory as an overload of the generated method `New<Case>`. The compiler verifies that a factory returns the case that it names. Patterns do not change.
+A union type can declare a static method `New<Case>` with the new attribute `[<UnionCaseConstructor>]`. This method is a factory: one more way to construct the case. F# code calls the factory through the case name, `Case(args)`. Other .NET languages see the factory as an overload of the generated method `New<Case>`. The compiler verifies that a factory returns the case that it names. Patterns do not change.
 
 # Motivation
 
@@ -32,7 +32,7 @@ type ElementDimensions =
     | Inherited of length: int
     | CustomDimensions of profile: Profile * length: int
 
-    [<UnionCaseFactory>]
+    [<UnionCaseConstructor>]
     static member NewCustomDimensions(width: int, height: int, length: int) =
         CustomDimensions(Profile(width, height), length)
 
@@ -53,7 +53,7 @@ var b = ElementDimensions.NewCustomDimensions(2, 3, 10);              // factory
 
 In this RFC, `U` is a union type and `C` is a case of `U`. The rules apply to the static methods of `U`, in its definition and in its intrinsic extensions.
 
-| Method name | `[<UnionCaseFactory>]` | Result |
+| Method name | `[<UnionCaseConstructor>]` | Result |
 | --- | --- | --- |
 | `NewX`, where `X` is not a case of `U` | no | An ordinary method, as today. |
 | `NewX`, where `X` is not a case of `U` | yes | Error. |
@@ -97,7 +97,7 @@ Each expression in a result position MUST be one of these:
 Any other expression is an error, also when it returns `C` at run time:
 
 ```fsharp
-    [<UnionCaseFactory>]
+    [<UnionCaseConstructor>]
     static member NewCustomDimensions(side: int) =
         if side > 0 then CustomDimensions(Profile(side, side), side)
         else Inherited side   // error: not a construction of 'CustomDimensions'
@@ -114,9 +114,9 @@ namespace Microsoft.FSharp.Core
 
 [<AttributeUsage(AttributeTargets.Method, AllowMultiple = false)>]
 [<Sealed>]
-type UnionCaseFactoryAttribute =
+type UnionCaseConstructorAttribute =
     inherit Attribute
-    new: unit -> UnionCaseFactoryAttribute
+    new: unit -> UnionCaseConstructorAttribute
 ```
 
 The feature needs a new language version. With an older language version, FS0023 does not change.
@@ -141,6 +141,7 @@ The feature needs a new language version. With an older language version, FS0023
 - A static member with the name of the case: the case name then has a member meaning next to its pattern meaning. The suggestion discussion rejects this.
 - Factories without the attribute or without the body check: a value from `C(args)` can then fail to match `C _`.
 - `U.NewC(args)` in F#: a second name for the case in F#.
+- `CompilationMappingAttribute` with `SourceConstructFlags.UnionCase` instead of a new attribute. It is not for user code. FSharp.Core reads it to find the cases of a single-case union, so a factory with it becomes a false case. The [Reflection](#reflection) rule also needs it to identify the generated method.
 
 # Prior art
 
@@ -157,7 +158,7 @@ The feature needs a new language version. With an older language version, FS0023
 
 # Interop
 
-- C# and VB see a factory as an overload of the generated method `NewC`, with `[UnionCaseFactory]`.
+- C# and VB see a factory as an overload of the generated method `NewC`, with `[UnionCaseConstructor]`.
 - A factory does not change the `Deconstruct` methods of [FS-1360](https://github.com/fsharp/fslang-design/pull/865).
 - A quotation of `C(args)` that selects a factory contains a `Call` of the factory, not `NewUnionCase`.
 - Member constraints (SRTP) see a factory as the static member `NewC`.
@@ -168,8 +169,8 @@ The feature needs a new language version. With an older language version, FS0023
 
 ## Diagnostics
 
-- Warning: a static method `NewC` without `[<UnionCaseFactory>]`.
-- Error: `[<UnionCaseFactory>]` on a member that is not a factory.
+- Warning: a static method `NewC` without `[<UnionCaseConstructor>]`.
+- Error: `[<UnionCaseConstructor>]` on a member that is not a factory.
 - Error: an expression in a result position that is not a construction of `C`.
 - Error: a method `NewC` with the compiled signature of the generated method.
 - FS0041 when overload resolution cannot select one of the case and its factories.
@@ -197,4 +198,4 @@ None.
 
 # Unresolved questions
 
-1. The name of the attribute: `UnionCaseFactory` or `UnionCaseConstructor`.
+None.
