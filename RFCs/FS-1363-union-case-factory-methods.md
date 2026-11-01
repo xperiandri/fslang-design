@@ -62,7 +62,7 @@ In this RFC, `U` is a union type and `C` is a case of `U`. The rules apply to th
 
 A method `NewC` MUST NOT have the compiled signature of the generated method `NewC`. The compiled signature is the number of method type parameters and the parameter types after erasure. The return type is not part of it. A case without fields has no generated method `NewC`. A union with `[<DefaultAugmentation(false)>]` has no generated method `NewC` for any case.
 
-Properties and instance members with the name `NewC` keep error FS0023. Optional extensions keep their current rules.
+Properties and instance members with the name `NewC` keep error FS0023, because a case constructor is a static method. Optional extensions keep their current rules.
 
 ## Factories
 
@@ -198,5 +198,3 @@ None.
 # Unresolved questions
 
 1. The name of the attribute: `UnionCaseFactory` or `UnionCaseConstructor`.
-2. Should `U.NewC(args)` also resolve to the factories in F#?
-3. Instance methods with the name `NewC`.
