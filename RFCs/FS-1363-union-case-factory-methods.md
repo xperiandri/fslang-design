@@ -51,30 +51,32 @@ var b = ElementDimensions.NewCustomDimensions(2, 3, 10);                     // 
 
 ## Method names
 
-In this RFC, `U` is a union type and `C` is a case of `U`. The rules apply to the static methods of `U`, in its definition and in its intrinsic extensions. `NewC` uses the F# name of the case, as the generated method does. `CompiledName` on a case does not change this name.
+In this RFC, `U` is a union type and `C` is a case of `U`. The rules apply to the static methods of `U`, in its definition and in its intrinsic extensions. The compiled name of a method is the value of its `CompiledName`, or else its name. `NewC` uses the F# name of the case, as the generated method does. `CompiledName` on a case does not change this name.
 
-| Method name | `[<UnionCaseConstructor>]` | Result |
+| Compiled name | `[<UnionCaseConstructor>]` | Result |
 | --- | --- | --- |
-| `NewX`, where `X` is not a case of `U` | no | An ordinary method, as today. |
-| `NewX`, where `X` is not a case of `U` | yes | Error. |
+| Not `NewC` for a case `C` of `U` | no | An ordinary method. |
+| Not `NewC` for a case `C` of `U` | yes | Error. |
 | `NewC` | no | An ordinary method, and a new warning: add the attribute or use another name. |
 | `NewC` | yes | A factory of `C`. |
 
-A method `NewC` MUST NOT have the compiled signature of the generated method `NewC`. The compiled signature is the number of method type parameters and the parameter types after erasure. The return type is not part of it. A case without fields has no generated method `NewC`. A reference union with `[<DefaultAugmentation(false)>]` has no generated method `NewC`. A struct union has it for each case with fields, also with `[<DefaultAugmentation(false)>]`.
+So `[<CompiledName "MakeA">] static member NewA` is an ordinary method. With the attribute, `[<CompiledName "NewA">] static member CreateA` is a factory of `A`.
+
+A method with the compiled name `NewC` MUST NOT have the compiled signature of the generated method `NewC`. The compiled signature is the number of method type parameters and the parameter types after erasure. The return type is not part of it. A case without fields has no generated method `NewC`. A reference union with `[<DefaultAugmentation(false)>]` has no generated method `NewC`. A struct union has it for each case with fields, also with `[<DefaultAugmentation(false)>]`.
 
 Properties and instance members with the name `NewC` keep error FS0023, because a case constructor is a static method. Optional extensions keep their current rules.
 
 ## Factories
 
-A factory MUST be a static method of `U` with the name `NewC`. Its parameters MUST be in one tupled group. Its return type MUST be `U`, with any type arguments. It MUST NOT have `CompiledName`, so its compiled name is the name of the generated method. The attribute on another member is an error. In all other respects, a factory is an ordinary method.
+A factory MUST be a static method of `U` with the compiled name `NewC`. Its parameters MUST be in one tupled group. Its return type MUST be `U`, with any type arguments. The attribute on another member is an error. In all other respects, a factory is an ordinary method.
 
 ## Construction
 
-In an application `C(args)` or `U.C(args)`, the candidates are the case and the factories of `C`. The case is a candidate with one parameter for each field, and the field names are the parameter names. A case with two or more fields also accepts one argument that is not a syntactic tuple. The type of this argument is the tuple type of the fields. So `CustomDimensions(args)` with `args: Profile * int` selects the case, as today. [Method application resolution](https://fsharp.github.io/fslang-spec/inference-procedures/#144-method-application-resolution) selects one candidate. A call to a factory is a method call.
+In an application `C(args)` or `U.C(args)`, the candidates are the case and the factories of `C`. The case is a candidate with one parameter for each field, and the field names are the parameter names. A case with two or more fields also accepts one argument that is not a syntactic tuple. The type of this argument is the tuple type of the fields. So `CustomDimensions(args)` with `args: Profile * int` selects the case, as today. A case with one field of a tuple type also accepts a syntactic tuple as the value of this field. So `P(1, 2)` for the case `P of (int * int)` selects the case, as today. [Method application resolution](https://fsharp.github.io/fslang-spec/inference-procedures/#144-method-application-resolution) selects one candidate. A call to a factory is a method call.
 
 The case name without arguments, as in `List.map C xs`, refers to the case only. So a new factory does not change code that uses the case as a first-class function.
 
-F# code calls a factory through the case name only. The name of a factory does not resolve in F#, the same as the generated method today.
+F# code calls a factory through the case name. The F# name `NewC` does not resolve in F#, the same as the generated method. A factory with another F# name resolves under this name as an ordinary method. So `U.CreateA` is a first-class function for the factory, and `A` alone is the case.
 
 ## Patterns
 
@@ -153,9 +155,9 @@ The feature needs a new language version. With an older language version, FS0023
 
 - The feature does not change existing code. The warning and the factories apply only to methods that give FS0023 today.
 - A new factory is a new overload for the users of the union. Their `C(args)` can select it or fail with FS0041. For example, a factory that takes `int list` gets `C([1; 2])` from the case `C of seq<int>`. The result is still the case `C`.
-- With an older language version, `C(args)` refers to the case only. A factory is then an ordinary static method `NewC`. The users of a union get its factories when they move to the new language version.
+- With an older language version, `C(args)` refers to the case only. A factory is then an ordinary static method. The users of a union get its factories when they move to the new language version.
 - An older compiler reports FS0023 for the new source code.
-- The compiled binary is valid IL: a factory is an overload of the generated method. An older compiler that references this binary sees an ordinary static method `NewC`.
+- The compiled binary is valid IL: a factory is an overload of the generated method. An older compiler that references this binary sees an ordinary static method.
 - A program that uses the attribute references a version of FSharp.Core that has the reflection change.
 
 # Interop
@@ -163,7 +165,7 @@ The feature needs a new language version. With an older language version, FS0023
 - C# and VB see a factory as an overload of the generated method `NewC`, with `[UnionCaseConstructor]`.
 - A factory does not change the `Deconstruct` methods of [FS-1360](https://github.com/fsharp/fslang-design/pull/865).
 - A quotation of `C(args)` that selects a factory contains a `Call` of the factory, not `NewUnionCase`.
-- Member constraints (SRTP) see a factory as the static member `NewC`.
+- Member constraints (SRTP) see a factory as a static member with its F# name.
 - Struct unions and single-case unions follow the same rules.
 - Type providers cannot provide union types, so there is no interaction.
 
@@ -171,7 +173,7 @@ The feature needs a new language version. With an older language version, FS0023
 
 ## Diagnostics
 
-- Warning: a static method `NewC` without `[<UnionCaseConstructor>]`.
+- Warning: a static method with the compiled name `NewC` without `[<UnionCaseConstructor>]`.
 - Error: `[<UnionCaseConstructor>]` on a member that is not a factory.
 - Error: an expression in a result position that is not a construction of `C`.
 - Error: a method `NewC` with the compiled signature of the generated method.
