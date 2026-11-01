@@ -61,7 +61,7 @@ Name resolution treats the container as a classic extension class, with these ad
 - For each grouping type it reads each marker type. The marker method gives the receiver type `R` over the type parameters of the marker type.
 - For each skeleton member whose attribute names the marker type, it finds the implementation method with the rules above. A skeleton without an implementation is not visible.
 - An instance member becomes an extension member of `R`. A static member becomes a static extension member of `R`, as an F# static extension member. A property becomes an extension property. Its accessors are the implementation methods `get_P` and `set_P`.
-- Member lookup, overload resolution, accessibility, nullness and attributes use the skeleton signature. SRTP accepts an extension operator from a block under the rules of FS-1043.
+- Member lookup, overload resolution, accessibility, nullness and attributes use the skeleton signature.
 - Code generation calls the implementation method. The receiver is the first argument.
 - Completion and `open type` hide grouping and marker types. Name resolution still accepts their names, as C# does.
 - Priority: an intrinsic member wins over an extension member. F# and C# extension members in scope follow the existing `open` order.
@@ -83,6 +83,12 @@ With the feature on, the skeleton and the implementation replace the dotted meth
 Two marked members of one module can have the same plain name and parameter types, for example `Create` on two receiver types. C# reports the same conflict. The compiler MUST report an error.
 
 A marked member in a nested module gets a warning. A nested module compiles to a nested class, and C# reads extension members only from a top-level container.
+
+## Operators
+
+- Consumption: an extension operator from a block is an SRTP candidate for its receiver type `R` when FS-1043 is on. Older language versions ignore it. F# ignores `op_Checked*`, instance compound-assignment operators and instance `op_IncrementAssignment`/`op_DecrementAssignment`; it has no counterpart for them.
+- Emission: a marked operator MUST be public, and one operand MUST have the receiver type (C# CS9317, CS9319). For a shift operator it MUST be the first operand (CS9320). Otherwise C# cannot find the operator, and the compiler reports a warning.
+- Only CLS operator names (`op_Addition`, `op_UnaryNegation`, …) are operators in C#. A custom F# operator such as `(+.)` compiles to `op_PlusDot`, and C# sees a static extension method.
 
 # Changes to the F# spec
 
@@ -133,6 +139,7 @@ A marked member in a nested module gets a warning. A nested module compiles to a
 |---|---|---|
 | new | a marked member in a nested module | warning |
 | new | a marked member is `op_Implicit` or `op_Explicit`; C# ignores it | warning |
+| new | a marked operator without an operand of the receiver type, or not public | warning |
 | new | two marked members of one module compile to the same name and parameter types | error |
 | FS1215 | a marked operator, language version without FS-1043 | warning, unchanged |
 
