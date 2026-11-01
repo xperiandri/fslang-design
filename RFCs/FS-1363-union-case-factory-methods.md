@@ -72,7 +72,9 @@ A factory MUST be a static method of `U` with the compiled name `NewC`. Its para
 
 ## Construction
 
-In an application `C(args)` or `U.C(args)`, the candidates are the case and the factories of `C`. The case is a candidate with one parameter for each field, and the field names are the parameter names. A case with two or more fields also accepts one argument that is not a syntactic tuple. The type of this argument is the tuple type of the fields. So `CustomDimensions(args)` with `args: Profile * int` selects the case, as today. A case with one field of a tuple type also accepts a syntactic tuple as the value of this field. So `P(1, 2)` for the case `P of (int * int)` selects the case, as today. [Method application resolution](https://fsharp.github.io/fslang-spec/inference-procedures/#144-method-application-resolution) selects one candidate. A call to a factory is a method call.
+In an application `C(args)` or `U.C(args)`, the candidates are the case and the factories of `C`. The case is a candidate with one parameter for each field, and the field names are the parameter names. [Method application resolution](https://fsharp.github.io/fslang-spec/inference-procedures/#144-method-application-resolution) selects one candidate. A call to a factory is a method call.
+
+A case with factories has the limits of a method group. `CustomDimensions(args)` with `args: Profile * int`, and `P(1, 2)` for the case `P of (int * int)`, give FS0505. The compiler reports this when the factory is added.
 
 The case name without arguments, as in `List.map C xs`, refers to the case only. So a new factory does not change code that uses the case as a first-class function.
 
@@ -133,6 +135,7 @@ The feature needs a new language version. With an older language version, FS0023
 
 - `C(args)` can call user code. A reader must look at the type to know the candidates.
 - The construction `C(args)` and the pattern `C(pats)` accept different argument lists.
+- A case with factories rejects a tuple value for its fields. See [Construction](#construction).
 - The body check rejects some correct factories, for example a factory that returns a cached value.
 - Reflection code outside FSharp.Core that finds `NewC` by name only fails on a type with a factory.
 
@@ -154,7 +157,7 @@ The feature needs a new language version. With an older language version, FS0023
 # Compatibility
 
 - The feature does not change existing code. The warning and the factories apply only to methods that give FS0023 today.
-- A new factory is a new overload for the users of the union. Their `C(args)` can select it or fail with FS0041. For example, a factory that takes `int list` gets `C([1; 2])` from the case `C of seq<int>`. The result is still the case `C`.
+- A new factory is a new overload for the users of the union. Their `C(args)` can select it or fail with FS0041 or FS0505. For example, a factory that takes `int list` gets `C([1; 2])` from the case `C of seq<int>`. The result is still the case `C`.
 - With an older language version, `C(args)` refers to the case only. A factory is then an ordinary static method. The users of a union get its factories when they move to the new language version.
 - An older compiler reports FS0023 for the new source code.
 - The compiled binary is valid IL: a factory is an overload of the generated method. An older compiler that references this binary sees an ordinary static method.
