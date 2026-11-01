@@ -78,7 +78,23 @@ A case with factories has the limits of a method group. `CustomDimensions(args)`
 
 The case name without arguments, as in `List.map C xs`, refers to the case only. So a new factory does not change code that uses the case as a first-class function.
 
-F# code calls a factory through the case name. The F# name `NewC` does not resolve in F#, the same as the generated method. A factory with another F# name resolves under this name as an ordinary method. So `U.CreateA` is a first-class function for the factory, and `A` alone is the case.
+F# code calls a factory through the case name. The F# name `NewC` does not resolve in F#, the same as the generated method.
+
+## Explicit calls
+
+To show a factory to F# as a static method, give it another F# name and the compiled name `NewC`. The factory then resolves under its F# name as an ordinary method:
+
+```fsharp
+    [<UnionCaseConstructor; CompiledName "NewCustomDimensions">]
+    static member Square(side: int, length: int) =
+        CustomDimensions(Profile(side, side), length)
+
+let c = CustomDimensions(2, 10)                   // through the case name
+let d = ElementDimensions.Square(2, 10)           // explicit call
+let e = List.map ElementDimensions.Square sizes   // first-class function
+```
+
+C# still sees an overload of `NewCustomDimensions`. Because `C` without arguments is the case, an F# name is the only way to use a factory as a first-class function.
 
 ## Patterns
 
@@ -145,7 +161,7 @@ The feature needs a new language version. With an older language version, FS0023
 - A module of functions next to the type: no overloads, and C# sees a separate type.
 - A static member with the name of the case: the case name then has a member meaning next to its pattern meaning. The suggestion discussion rejects this.
 - Factories without the attribute or without the body check: a value from `C(args)` can then fail to match `C _`.
-- `U.NewC(args)` in F#: a second name for the case in F#.
+- `U.NewC(args)` in F#: a second name for the case in F#. An author who wants an explicit call gives the factory an F# name, as in [Explicit calls](#explicit-calls).
 - `CompilationMappingAttribute` with `SourceConstructFlags.UnionCase` instead of a new attribute. It is not for user code, and FSharp.Core reads it to find the cases of a single-case union. The [Reflection](#reflection) rule also needs it.
 
 # Prior art
