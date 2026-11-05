@@ -1,4 +1,4 @@
-# F# RFC FS-1356 - `allows ref struct` constraint on F# type parameters
+# F# RFC FS-1356 - Byref-like type arguments with `'T or byref<struct>`
 
 The design suggestion [Allow F# type parameters to accept byref-like types](https://github.com/fsharp/fslang-suggestions/issues/1476) has not been marked "approved in principle" yet.
 This RFC covers the detailed proposal for this suggestion.
@@ -12,10 +12,10 @@ Related: [FS-1053 Span and byref-like structs](../FSharp-4.5/FS-1053-span.md); F
 
 # Summary
 
-A type parameter with the constraint `allows ref struct` accepts byref-like types, such as `Span<'T>`, as type arguments. Its definition treats the type parameter as a byref-like type. F# 9 accepts such type arguments when C# declares the constraint. This RFC lets F# declare it. The feature is `AllowsRefStructConstraint` (preview).
+A type parameter written `'T or byref<struct>` accepts byref-like types, such as `Span<'T>`, as type arguments. Its definition treats the type parameter as a byref-like type. F# 9 accepts such type arguments when C# declares the `allows ref struct` anti-constraint. This RFC lets F# declare it, as a constraint union. The feature is `AllowsRefStructConstraint` (preview).
 
 ```fsharp
-let tryFindBy<'Alternate when 'Alternate : allows ref struct and 'Alternate : not null>
+let tryFindBy<'Alternate or byref<struct> when 'Alternate : not null>
     (key: 'Alternate) (map: FrozenDictionary<string, int>) =
     let mutable value = 0
     if map.GetAlternateLookup<'Alternate>().TryGetValue (key, &value) then ValueSome value else ValueNone
@@ -36,31 +36,39 @@ tryFindBy ("a".AsSpan ()) map   // 'Alternate = ReadOnlySpan<char>
 
 ## Syntax
 
-The constraint grammar gets one form:
+A type parameter gets a widened form. It is valid where code declares or annotates a type parameter:
 
 ```fsgrammar
-constraint :=
+typar-or-byref :=
+    typar or byref<struct>         -- 'T, or any byref-like struct
+
+typar-defn :=
+    attributes_opt typar
+    attributes_opt typar-or-byref
+
+type :=
     ...
-    typar ':' allows ref struct    -- byref-like type arguments allowed
+    typar-or-byref
 ```
 
-`allows` is a keyword only in this position. Tooltips and FS0341 already print this form for C#-declared type parameters.
+`or` and `struct` are keywords, and `byref<struct>` is new syntax. The form reads as the constraint union `'T : struct or 'T : not struct or 'T : byref<struct>`: the bare `'T` of today, or a byref-like struct. The suffix binds to the type parameter before it. It applies to `'T` in its whole scope, as a `when` constraint does. Below, a type parameter in this form *allows ref structs*.
 
 ```fsharp
-type ISink<'T when 'T : allows ref struct> =
+type ISink<'T or byref<struct>> =
     abstract Put: 'T -> unit
 
 [<Struct; IsByRefLike>]
-type Pair<'T when 'T : allows ref struct> =
+type Pair<'T or byref<struct>> =
     val First: 'T
     val Second: 'T
     new (first, second) = { First = first; Second = second }
 ```
 
-- Code MUST declare the constraint explicitly. Inference and generalization never add it, so existing signatures do not change. An inner function with its own type parameter needs the constraint on that parameter to accept `'T`.
-- Other type parameters do not inherit it, as in C#. In `'U when 'U :> 'T`, `'U` allows ref structs only if `'U` declares the constraint.
+- Code MUST write the form explicitly. Inference and generalization never add it, so existing signatures do not change. An inner function with its own type parameter needs the form on that parameter to accept `'T`.
+- Constraints in a `when` clause restrict the whole domain. `'T or byref<struct> when 'T :> IDisposable` accepts the byref-like structs that implement `IDisposable`, not every byref-like struct.
+- Other type parameters do not inherit it, as in C#. In `'U when 'U :> 'T`, `'U` accepts byref-like structs only if code writes `'U or byref<struct>`.
 - Code MUST NOT combine it with a constraint that requires a reference type: `not struct`, `null`, `delegate<_, _>` or a subtype constraint to a class type (C# CS9243).
-- Code MAY declare it on the type parameters of functions, members, `inline` functions (including `^T`), type definitions and type extensions.
+- Code MAY write it on the type parameters of functions, members, `inline` functions (including `^T`), type definitions and type extensions.
 
 ## Instantiation
 
@@ -80,19 +88,19 @@ Code MUST NOT do these operations on a value of type `'T`:
 - Call a member inherited from `Object` or `ValueType`, or a non-virtual instance interface member, on it (C# CS0029, CS9246). Such a call boxes the receiver unless the type argument overrides the member, which `'T` does not guarantee. Virtual interface members stay constrained calls, as for any type parameter, also with a default body. A byref-like type argument that relies on the default body throws at run time.
 
 ```fsharp
-let pass<'T when 'T : allows ref struct> (x: 'T) = x        // returned like a Span<_> parameter
-let bad1<'T when 'T : allows ref struct> (x: 'T) = box x    // error: boxing
-let bad2<'T when 'T : allows ref struct> (x: 'T) = [ x ]    // error: 'T list
+let pass (x: 'T or byref<struct>) = x        // returned like a Span<_> parameter
+let bad1 (x: 'T or byref<struct>) = box x    // error: boxing
+let bad2 (x: 'T or byref<struct>) = [ x ]    // error: 'T list
 
-type Holder<'T when 'T : allows ref struct>(x: 'T) =
-    member _.Value = x                                      // error: x is stored in a field
+type Holder<'T or byref<struct>>(x: 'T) =
+    member _.Value = x                       // error: x is stored in a field
 ```
 
 ## Overrides, interface implementations and extensions
 
 - Signature conformance compares this constraint as any other constraint. FS0341 already reports a mismatch.
 - An override or interface implementation MUST copy the constraint from its slot. The rules above apply to its body. Today the compiler drops the constraint.
-- A type extension MAY restate the constraint of the extended type parameter. Then `type IEnumerable<'T when 'T : allows ref struct> with ...` compiles on .NET 9. [#1390](https://github.com/fsharp/fslang-suggestions/issues/1390) makes the restatement optional.
+- A type extension MAY restate the constraint of the extended type parameter. Then `type IEnumerable<'T or byref<struct>> with ...` compiles on .NET 9. [#1390](https://github.com/fsharp/fslang-suggestions/issues/1390) makes the restatement optional.
 
 ## Compilation
 
@@ -111,8 +119,8 @@ type Holder<'T when 'T : allows ref struct>(x: 'T) =
 
 # Changes to the F# spec
 
-- [§5 Types and Type Constraints](https://fsharp.github.io/fslang-spec/types-and-type-constraints/): add `typar ':' allows ref struct` to the `constraint` grammar.
-- [§5.2 Type Constraints](https://fsharp.github.io/fslang-spec/types-and-type-constraints/#52-type-constraints): add *Allows Ref Struct Constraints* with the rules of [Syntax](#syntax) and [Instantiation](#instantiation).
+- [§5 Types and Type Constraints](https://fsharp.github.io/fslang-spec/types-and-type-constraints/): add `typar or byref<struct>` to the `type` and `typar-defn` grammar.
+- [§5.2 Type Constraints](https://fsharp.github.io/fslang-spec/types-and-type-constraints/#52-type-constraints): add *Byref-like Type Arguments* with the rules of [Syntax](#syntax) and [Instantiation](#instantiation).
 - [§14.8 Dispatch Slot Checking](https://fsharp.github.io/fslang-spec/inference-procedures/#148-dispatch-slot-checking): copy the constraint from the slot.
 - [§14.9 Byref Safety Analysis](https://fsharp.github.io/fslang-spec/inference-procedures/#149-byref-safety-analysis): replace "Byref types may not be used as generic arguments" with the rule of [Instantiation](#instantiation). Add the rules of [Checking the definition](#checking-the-definition).
 
@@ -124,21 +132,22 @@ type Holder<'T when 'T : allows ref struct>(x: 'T) =
 
 # Alternatives
 
-- **An attribute on the type parameter** (`[<AllowByRefLike>] 'T`): differs from the form that F# prints and from C#.
-- **A constraint union, `'T or byref<struct>`** ([dotnet/fsharp#16800](https://github.com/dotnet/fsharp/issues/16800#issuecomment-2030288555), [review](https://github.com/fsharp/fslang-design/pull/861#discussion_r4304596828)): reads as `'T : struct or 'T : not struct or 'T : byref<struct>`, with F# words and no second meaning for `ref`. It adds type syntax in annotations and type parameter lists, and it differs from C# and from the form that F# 9 prints.
+- **An attribute on the type parameter** (`[<AllowByRefLike>] 'T`): an attribute in place of type syntax, and it differs from C#.
+- **`'T : allows ref struct`**, the C# 13 form that F# 9 prints for IL type parameters. `ref` already names the reference cell type, and C# `ref` is `byref` in F#. `allows` becomes a keyword for a constraint that widens instead of restricts.
+- **`'T :? byref<struct>`** ([dotnet/fsharp#16800](https://github.com/dotnet/fsharp/issues/16800#issuecomment-1977210625)): `:?` reads as a type test.
 - **Infer the constraint, or check `inline` functions after inlining** ([#688](https://github.com/fsharp/fslang-suggestions/issues/688), closed): signatures and errors would depend on the optimizer.
 - **Relax only the constraint matching for extensions** ([#1390](https://github.com/fsharp/fslang-suggestions/issues/1390)): fixes extensions, but not generic code.
 - **Do nothing**: such helpers stay in C#.
 
 # Prior art
 
-- **C# 13** `where T : allows ref struct` ([ref struct interfaces](https://github.com/dotnet/csharplang/blob/main/proposals/csharp-13.0/ref-struct-interfaces.md)). The rules above follow C#. C# also has `scoped`, and it rejects ref structs as iterator element types (CS9267).
+- **C# 13** `where T : allows ref struct` ([ref struct interfaces](https://github.com/dotnet/csharplang/blob/main/proposals/csharp-13.0/ref-struct-interfaces.md)). The rules above follow C#, the syntax does not. C# also has `scoped`, and it rejects ref structs as iterator element types (CS9267).
 - **.NET 9** runtime support for byref-like generics, detected through `RuntimeFeature.ByRefLikeGenerics`.
 - **F# 9** consumes the constraint on IL type parameters ([dotnet/fsharp#17597](https://github.com/dotnet/fsharp/pull/17597)).
 
 # Compatibility
 
-- This is not a breaking change. Today the syntax is an error (FS0571). Inference never adds the constraint, and existing definitions do not change.
+- This is not a breaking change. Today the syntax is a parse error (FS0010). Inference never adds the constraint, and existing definitions do not change.
 - Older compilers and binaries that use the feature: F# before 9 ignores stream B. F# 9 and 10 apply the constraint only to IL type parameters. Both reject byref-like type arguments with FS0412, so neither accepts unsafe code.
 - C# and other .NET languages read the IL flag.
 - FSharp.Core does not change in this RFC.
@@ -159,13 +168,13 @@ type Holder<'T when 'T : allows ref struct>(x: 'T) =
 | new | code calls a member inherited from `Object` or `ValueType`, or a non-virtual instance interface member, on a value of such a type |
 | FS3350 | the feature is off |
 | FS0412, FS0406, FS0431, FS0437, FS3234, FS3235 | unchanged, now also for values of such type parameters |
-| FS0341, FS0957 | unchanged, now satisfiable by declaring the constraint |
+| FS0341, FS0957 | unchanged, now satisfiable by writing `or byref<struct>` |
 
 All are errors.
 
 ## Tooling
 
-Tooltips, signature generation and FCS show `'T: allows ref struct`, as they do for IL type parameters today. Completion offers `allows ref struct` after `'T :`. Debugging, navigation and colorization do not change.
+Tooltips, signature generation and FCS print `'T or byref<struct>`, also for the IL type parameters that F# 9 prints as `'T : allows ref struct`. Completion offers `or byref<struct>` after a type parameter. Debugging, navigation and colorization do not change.
 
 ## Performance
 
@@ -183,5 +192,6 @@ Not applicable.
 
 - Which FSharp.Core functions declare the constraint: `Unchecked.defaultof`, `typeof`, `typedefof`, `sizeof`, `raise`, `ignore`, `id` ([#952](https://github.com/fsharp/fslang-suggestions/issues/952)). Function values over byref-like types need it on `FSharpFunc<_, _>`, which also enables `|>` ([#688](https://github.com/fsharp/fslang-suggestions/issues/688)).
 - A `scoped` modifier for parameters.
+- Whether tooltips keep the F# 9 text `allows ref struct` as a note, as they show `requires comparison`.
 - Whether to allow a call of an `Object` member, such as `ToString`. C# rejects it (CS0029). The runtime supports it when the type argument overrides the member.
 - The feature name `AllowsRefStructConstraint` is a placeholder.
