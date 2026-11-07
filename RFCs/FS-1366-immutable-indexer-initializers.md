@@ -1,9 +1,9 @@
 # F# RFC FS-1366 - Indexer initializers for immutable collections
 
-The design suggestion [Indexer initializers for immutable collections](https://github.com/fsharp/fslang-suggestions/issues/FILL-ME-IN) is not approved yet.
+The design suggestion [Indexer initializers for immutable collections](https://github.com/fsharp/fslang-suggestions/issues/1481) is not approved yet.
 This RFC extends [FS-1364](https://github.com/fsharp/fslang-design/pull/869) to types that have no indexer setter.
 
-- [x] [Suggestion](https://github.com/fsharp/fslang-suggestions/issues/FILL-ME-IN)
+- [x] [Suggestion](https://github.com/fsharp/fslang-suggestions/issues/1481)
 - [ ] Approved in principle
 - [ ] Implementation (not started)
 - [ ] Discussion
@@ -52,7 +52,7 @@ Then `R(a1, ..., an, [k1] <- v1, ..., [km] <- vm)` means one call `B.N(a1, ..., 
 1. Overload resolution selects `B.N` with the arguments `a1, ..., an` before the span, as for the C# 15 [collection expression arguments](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/proposals/csharp-15.0/collection-expression-arguments). The constructors of `R` do not take part.
 2. The compiler evaluates `a1, ..., an`, then `k1, v1, ..., km, vm`, and then calls `B.N` once.
 3. Each initializer MUST have exactly one index. Named property setters are errors.
-4. The builder method sets the result for a repeated key. `ImmutableDictionary.CreateRangeWithOverwrite`, `FrozenDictionary.Create` and the `Map` builder of FS-1365 keep the last value, as repeated `[k] <- v` does.
+4. The builder method sets the result for a repeated key. `ImmutableDictionary.CreateRangeWithOverwrite`, `FrozenDictionary.Create` and the `Map` builder of [FS-1365](https://github.com/fsharp/fslang-design/pull/870) keep the last value, as repeated `[k] <- v` does.
 5. If the span parameter of `B.N` is `scoped`, the compiler MAY put the elements on the stack.
 
 If a condition is false, the FS-1364 error stays.
